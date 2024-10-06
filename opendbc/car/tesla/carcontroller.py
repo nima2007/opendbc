@@ -15,6 +15,7 @@ class CarController(CarControllerBase):
     self.packer = CANPacker(dbc_name)
     self.pt_packer = CANPacker(DBC[CP.carFingerprint]['pt'])
     self.tesla_can = TeslaCAN(self.packer, self.pt_packer)
+    self.das_control_cntr = 0
 
   def update(self, CC, CS, now_nanos):
 
@@ -42,10 +43,11 @@ class CarController(CarControllerBase):
 
     # Longitudinal control
     if self.CP.openpilotLongitudinalControl and (self.frame % 5 == 0 or self.frame % 5 == 2 ):
+      self.das_control_cntr += 1
       acc_state = CS.das_control["DAS_accState"]
       target_accel = clip(actuators.accel, CarControllerParams.ACCEL_MIN, CarControllerParams.ACCEL_MAX)
       target_speed = max(CS.out.vEgo + (target_accel * CarControllerParams.ACCEL_TO_SPEED_MULTIPLIER), 0)
-      can_sends.append(self.tesla_can.create_longitudinal_commands(acc_state, target_speed, target_accel, (self.frame // 2) % 8))
+      can_sends.append(self.tesla_can.create_longitudinal_commands(acc_state, target_speed, target_accel, self.das_control_cntr % 8))
 
     # Cancel on user steering override, since there is no steering torque blending
     if hands_on_fault:
